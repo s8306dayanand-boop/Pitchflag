@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PitchFlag – Freelancer Proposal Generator</title>
+<style>
+:root{--ink:#1b1740;--paper:#f4f2fb;--card:#fff;--line:#d9d4ee;--vio:#6837fc;--amber:#ffb020;--mute:#6a6590}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1020px;margin:0 auto;padding:20px 18px 60px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.logo{font:700 20px Georgia,serif}
+.logo i{font-style:normal;color:var(--vio)}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1.5px solid var(--ink);background:var(--card);color:var(--ink);padding:8px 14px}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+button.primary{background:var(--vio);border-color:var(--vio);color:#fff;font-weight:600;padding:12px 20px}
+button.primary:disabled{opacity:.6;cursor:wait}
+.hero{padding:44px 0 22px}
+.hero h1{font:700 clamp(30px,5.5vw,52px)/1.1 Georgia,serif;margin:0 0 12px;max-width:16em}
+.hero p{margin:0;color:var(--mute);max-width:36em}
+.ticket{display:flex;flex-wrap:wrap;gap:0;border:1.5px dashed var(--vio);border-radius:12px;background:var(--card);margin:6px 0 26px;overflow:hidden}
+.ticket div{padding:10px 16px;flex:1 1 200px}
+.ticket div+div{border-left:1.5px dashed var(--vio)}
+.ticket small{display:block;color:var(--mute);font-size:13px}
+.ticket b{font:600 15px ui-monospace,Consolas,monospace}
+.ticket .live{background:var(--amber);padding:2px 8px;border-radius:6px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:780px){.grid{grid-template-columns:1fr}.ticket div+div{border-left:0;border-top:1.5px dashed var(--vio)}}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+label{display:block;font-weight:600;margin:14px 0 6px}
+label:first-child{margin-top:0}
+input,textarea{width:100%;font:inherit;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:150px;resize:vertical}
+#out{white-space:pre-wrap;min-height:220px}
+.empty{color:var(--mute)}
+.actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.liked{background:var(--amber);border-color:var(--amber)}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600;font-size:14px}
+tr.me td:first-child{font-weight:700}
+.bar{height:8px;border-radius:4px;background:var(--vio);min-width:2px}
+details{margin-top:22px}
+summary{cursor:pointer;font-weight:600}
+.msg{color:#b3261e;margin:8px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">Pitch<i>Flag</i></div>
+  <button id="resetBtn" title="Clear the A/B results stored in this browser">Reset results</button>
+</header>
+
+<section class="hero">
+  <h1 id="headline">Win more freelance gigs with proposals that sound like you.</h1>
+  <p>Paste a job post from Upwork or Fiverr, add your skills, and get a cover letter in seconds.</p>
+</section>
+
+<div class="ticket" aria-live="polite">
+  <div><small>Flag: proposal_tone</small><b id="tTone">loading…</b></div>
+  <div><small>Flag: landing_headline_variant</small><b id="tHead">loading…</b></div>
+  <div><small>Flag source</small><b id="tSrc" class="live">connecting</b></div>
+</div>
+
+<div class="grid">
+  <section class="panel">
+    <label for="job">Job description</label>
+    <textarea id="job" placeholder="Paste the client's job post here"></textarea>
+    <label for="name">Your name</label>
+    <input id="name" placeholder="e.g. Dayanand">
+    <label for="skills">Your top skills</label>
+    <input id="skills" placeholder="e.g. Python, React, Playwright automation">
+    <div class="actions"><button class="primary" id="genBtn">Generate proposal</button></div>
+    <p class="msg" id="err" role="alert"></p>
+  </section>
+
+  <section class="panel">
+    <div id="out" class="empty">Your proposal will appear here. Paste a job post and select Generate proposal.</div>
+    <div class="actions">
+      <button id="copyBtn" disabled>Copy</button>
+      <button id="likeBtn" disabled>👍 Good proposal</button>
+    </div>
+  </section>
+</div>
+
+<section class="panel" style="margin-top:20px">
+  <strong>A/B results by tone</strong>
+  <span class="empty"> (stored in this browser)</span>
+  <table>
+    <thead><tr><th>Tone</th><th>Generated</th><th>Copied</th><th>👍</th><th>Copy rate</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</section>
+
+<details>
+  <summary>Settings: Flagsmith key and optional Claude key</summary>
+  <div class="panel" style="margin-top:10px">
+    <label for="envKey">Flagsmith Environment ID (client-side key)</label>
+    <input id="envKey" placeholder="Paste your Environment ID">
+    <label for="apiKey">Anthropic API key (optional – leave empty to use built-in templates)</label>
+    <input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off">
+    <div class="actions"><button id="saveBtn" class="primary">Save settings</button></div>
+    <p class="empty">Keys stay in this browser (localStorage) and are only sent to Flagsmith and Anthropic.</p>
+  </div>
+</details>
+</div>
+
+<script>
+// ---- Config: paste your Flagsmith Environment ID here, or in the Settings panel ----
+const ENV_ID = "";
+const FLAGSMITH_URL = "https://edge.api.flagsmith.com/api/v1/identities/";
+const TONES = ["professional", "friendly", "confident"];
+const HEADLINES = {
+  A: "Win more freelance gigs with proposals that sound like you.",
+  B: "Stop losing jobs to weak cover letters. Get a winning one in 10 seconds."
+};
+const $ = id => document.getElementById(id);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+};
+
+let tone = "professional", headline = "A", lastText = "", liked = false;
+const uid = store.get("pf_uid", "") || (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+store.set("pf_uid", uid);
+
+// ---- Flagsmith: identity call returns this user's variant for each flag ----
+async function loadFlags() {
+  const key = store.get("pf_env", "") || ENV_ID;
+  $("envKey").value = key;
+  if (!key) return setFlags("professional", "A", "default (no key)");
+  try {
+    const res = await fetch(FLAGSMITH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Environment-Key": key },
+      body: JSON.stringify({ identifier: uid, traits: [] })
+    });
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    const val = name => {
+      const f = (data.flags || []).find(x => x.feature && x.feature.name === name);
+      return f && f.enabled ? String(f.feature_state_value ?? "").trim() : null;
+    };
+    const t = (val("proposal_tone") || "").toLowerCase();
+    const h = (val("landing_headline_variant") || "").toUpperCase();
+    setFlags(TONES.includes(t) ? t : "professional", HEADLINES[h] ? h : "A", "Flagsmith live");
+  } catch (e) {
+    setFlags("professional", "A", "fallback (offline)");
+  }
+}
+function setFlags(t, h, src) {
+  tone = t; headline = h;
+  $("tTone").textContent = t; $("tHead").textContent = h; $("tSrc").textContent = src;
+  $("headline").textContent = HEADLINES[h];
+  renderRows();
+}
+
+// ---- Proposal generation ----
+function template(job, name, skills) {
+  const topic = job.replace(/\s+/g, " ").trim().slice(0, 110);
+  const me = name || "your future freelancer", sk = skills || "the skills this project needs";
+  const T = {
+    professional: `Dear Hiring Manager,\n\nI have reviewed your project ("${topic}…") and I am confident I can deliver it to a high standard. My experience with ${sk} maps directly to your requirements.\n\nMy approach: confirm scope and deadlines, share a working draft early, then refine against your feedback. I am available to start immediately and will keep communication clear throughout.\n\nI would welcome the chance to discuss the details.\n\nKind regards,\n${me}`,
+    friendly: `Hi there! 👋\n\nYour post caught my eye: "${topic}…". This is exactly the kind of work I enjoy. I work with ${sk}, so I can jump in quickly.\n\nHere is how I would start: a quick chat to make sure I understand what you want, a first draft fast, and then we polish it together. No surprises, just steady updates.\n\nHappy to answer any questions. Looking forward to hearing from you!\n\nWarmly,\n${me}`,
+    confident: `Hello,\n\nYou need this done right: "${topic}…". I have done work like this before, using ${sk}, and I know where projects like yours go wrong and how to avoid it.\n\nI will deliver a first version fast and on spec. If it is not what you pictured, I revise until it is.\n\nLet's talk today and get this moving.\n\n${me}`
+  };
+  return T[tone] || T.professional;
+}
+async function viaClaude(job, name, skills, key) {
+  const style = { professional: "formal and polished", friendly: "warm and conversational", confident: "bold, direct and results-focused" }[tone];
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-6", max_tokens: 700,
+      messages: [{ role: "user", content: `Write a freelance proposal (max 170 words) in a ${style} tone. Freelancer: ${name || "N/A"}. Skills: ${skills || "N/A"}. Job post:\n${job}\n\nReturn only the proposal text.` }]
+    })
+  });
+  if (!res.ok) throw new Error("Claude API error " + res.status);
+  const d = await res.json();
+  return d.content.filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+}
+
+// ---- Event tracking (per tone) ----
+function stats() { try { return JSON.parse(store.get("pf_stats", "{}")); } catch (e) { return {}; } }
+function track(kind) {
+  const s = stats(); s[tone] = s[tone] || { gen: 0, copy: 0, like: 0 };
+  s[tone][kind]++; store.set("pf_stats", JSON.stringify(s)); renderRows();
+}
+function renderRows() {
+  const s = stats();
+  $("rows").innerHTML = TONES.map(t => {
+    const r = s[t] || { gen: 0, copy: 0, like: 0 }, rate = r.gen ? Math.round(r.copy / r.gen * 100) : 0;
+    return `<tr class="${t === tone ? "me" : ""}"><td>${t}${t === tone ? " (you)" : ""}</td><td>${r.gen}</td><td>${r.copy}</td><td>${r.like}</td><td><div class="bar" style="width:${rate}%"></div>${rate}%</td></tr>`;
+  }).join("");
+}
+
+// ---- UI wiring ----
+$("genBtn").onclick = async () => {
+  const job = $("job").value.trim(), name = $("name").value.trim(), skills = $("skills").value.trim();
+  $("err").textContent = "";
+  if (job.length < 20) { $("err").textContent = "Paste the job description first (at least a couple of sentences)."; return; }
+  const btn = $("genBtn"); btn.disabled = true; btn.textContent = "Generating…";
+  const key = store.get("pf_api", "");
+  try { lastText = key ? await viaClaude(job, name, skills, key) : template(job, name, skills); }
+  catch (e) { $("err").textContent = e.message + ". Showing the built-in template instead."; lastText = template(job, name, skills); }
+  $("out").textContent = lastText; $("out").classList.remove("empty");
+  liked = false; $("likeBtn").classList.remove("liked");
+  $("copyBtn").disabled = $("likeBtn").disabled = false;
+  btn.disabled = false; btn.textContent = "Generate proposal";
+  track("gen");
+};
+$("copyBtn").onclick = async () => {
+  try { await navigator.clipboard.writeText(lastText); } catch (e) {}
+  $("copyBtn").textContent = "Copied"; setTimeout(() => $("copyBtn").textContent = "Copy", 1500);
+  track("copy");
+};
+$("likeBtn").onclick = () => { if (liked) return; liked = true; $("likeBtn").classList.add("liked"); track("like"); };
+$("resetBtn").onclick = () => { store.set("pf_stats", "{}"); renderRows(); };
+$("saveBtn").onclick = () => { store.set("pf_env", $("envKey").value.trim()); store.set("pf_api", $("apiKey").value.trim()); loadFlags(); };
+$("apiKey").value = store.get("pf_api", "");
+loadFlags();
+</script>
+</body>
+</html>
